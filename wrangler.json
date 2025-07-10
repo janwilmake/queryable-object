@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/wrangler@latest/config-schema.json",
+  "name": "queryable-object-demo",
+  "compatibility_date": "2025-07-07",
+  "main": "demo.ts",
+  "dev": { "port": 3000 },
+  "durable_objects": {
+    "bindings": [{ "class_name": "MyDO", "name": "MyDO" }]
+  },
+  "migrations": [{ "new_sqlite_classes": ["MyDO"], "tag": "v1" }]
+}

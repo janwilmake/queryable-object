@@ -1,0 +1,12 @@
+{
+  "name": "queryable-object",
+  "version": "0.0.1",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250710.0"
+  },
+  "main": "queryable.ts",
+  "files": [
+    "queryable.ts",
+    "middleware.ts"
+  ]
+}
