@@ -1,6 +1,6 @@
 # Queryable Object
 
-Improved version of [browsable object](https://github.com/outerbase/browsable-durable-object) that uses RPC instaed of needing fetch. This has the benefit of not exposing any endpoints when you expose your durable object to the public web. Besides, since the studio is not tied to a single DO, we can use things like [multistub](https://github.com/janwilmake/multistub) to connect the studio with more than one DO!
+Improved version of [browsable object](https://github.com/outerbase/browsable-durable-object) that uses RPC instaed of needing fetch. This has the benefit of not exposing any endpoints when you expose your durable object to the public web. Besides, since the studio is not tied to a single DO, we can use things like [multistub](https://github.com/janwilmake/multistub) to connect the studio with more than one DO! This is an alternative to [sql-storage-cursor](https://github.com/janwilmake/sql-storage-cursor) - it has a slightly different API, but is a lot simpler, and more secure by default!
 
 ## usage
 

@@ -1,6 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { studioMiddleware } from "./studioMiddleware";
-import { Queryable, QueryableHandler } from "./queryable";
+import { Queryable, QueryableHandler, studioMiddleware } from "./queryable";
 
 type Env = { MyDO: DurableObjectNamespace<MyDO & QueryableHandler> };
 

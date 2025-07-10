@@ -7,5 +7,6 @@
   "durable_objects": {
     "bindings": [{ "class_name": "MyDO", "name": "MyDO" }]
   },
-  "migrations": [{ "new_sqlite_classes": ["MyDO"], "tag": "v1" }]
+  "migrations": [{ "new_sqlite_classes": ["MyDO"], "tag": "v1" }],
+  "route": { "pattern": "queryable.itscooldo.com", "custom_domain": true }
 }
