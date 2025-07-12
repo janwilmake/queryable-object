@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-export { studioMiddleware } from "./middleware";
+export { studioMiddleware } from "./studio-middleware";
 export class QueryableHandler {
   public sql: SqlStorage | undefined;
 
