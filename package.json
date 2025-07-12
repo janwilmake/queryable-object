@@ -7,6 +7,6 @@
   "main": "queryable.ts",
   "files": [
     "queryable.ts",
-    "middleware.ts"
+    "studio-middleware.ts"
   ]
 }
