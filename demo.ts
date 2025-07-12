@@ -107,6 +107,7 @@ export default {
 
 - Get the schema: GET /schema
 - Items for any ID: GET /{id}
+- Execute any query: GET /{id}/exec?query=YOUR_QUERY&binding=a&binding=b
 - Any studio: GET /{id}/studio
 `);
     }
