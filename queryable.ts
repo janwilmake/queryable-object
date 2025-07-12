@@ -7,6 +7,39 @@ export class QueryableHandler {
     this.sql = sql;
   }
 
+  public getSchema(): string {
+    if (!this.sql) {
+      throw new Error("SQL storage not available");
+    }
+
+    const result = this.exec(
+      `SELECT sql FROM "main".sqlite_schema WHERE type = 'table' AND sql IS NOT NULL ORDER BY name`,
+    );
+
+    let schema = "";
+    for (const row of result.array) {
+      if (row.sql) {
+        schema += row.sql + ";\n\n";
+      }
+    }
+
+    // Also get indexes
+    const indexResult = this.exec(
+      `SELECT sql FROM "main".sqlite_schema WHERE type = 'index' AND sql IS NOT NULL ORDER BY name`,
+    );
+
+    if (indexResult.array.length > 0) {
+      schema += "-- Indexes\n";
+      for (const row of indexResult.array) {
+        if (row.sql) {
+          schema += row.sql + ";\n";
+        }
+      }
+    }
+
+    return schema.trim();
+  }
+
   public raw(query: string, ...bindings: any[]) {
     if (!this.sql) {
       throw new Error("SQL storage not available");
@@ -56,6 +89,10 @@ export function Queryable() {
         return this.ensureQueryableHandler().raw(query, ...bindings);
       }
 
+      public getSchema() {
+        return this.ensureQueryableHandler().getSchema();
+      }
+
       public exec(query: string, ...bindings: any[]) {
         return this.ensureQueryableHandler().exec(query, ...bindings);
       }
@@ -77,6 +114,10 @@ export class QueryableObject<TEnv = any> extends DurableObject<TEnv> {
       this._queryableHandler = new QueryableHandler(this.sql);
     }
     return this._queryableHandler;
+  }
+
+  public getSchema() {
+    return this.ensureQueryableHandler().getSchema();
   }
 
   public raw(query: string, ...bindings: any[]) {

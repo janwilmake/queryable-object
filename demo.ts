@@ -105,6 +105,7 @@ export default {
     if (url.pathname === "/") {
       return new Response(`usage:
 
+- Get the schema: GET /schema
 - Items for any ID: GET /{id}
 - Any studio: GET /{id}/studio
 `);
@@ -113,6 +114,19 @@ export default {
       // Add studio that can access any raw function
       return studioMiddleware(request, stub.raw, {
         basicAuth: { username: "admin", password: "test" },
+      });
+    }
+
+    if (url.pathname === "/schema") {
+      return new Response(await stub.getSchema());
+    }
+
+    if (url.pathname.endsWith("/exec")) {
+      const query = url.searchParams.get("query");
+      const bindings = url.searchParams.getAll("binding");
+      const result = await stub.exec(query, ...bindings);
+      return new Response(JSON.stringify(result, undefined, 2), {
+        headers: { "content-type": "application/json" },
       });
     }
 
