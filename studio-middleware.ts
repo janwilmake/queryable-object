@@ -12,7 +12,7 @@ interface StudioTransactionRequest {
 
 type StudioRequest = StudioQueryRequest | StudioTransactionRequest;
 
-interface StudioOptions {
+export interface StudioOptions {
   dangerouslyDisableAuth?: boolean;
   basicAuth?: {
     username: string;
@@ -109,7 +109,7 @@ function createStudioInterface() {
 
 async function executeQueryWithRaw(
   rawRpcFunction: (query: string, ...bindings: any[]) => Promise<any>,
-  statement: string,
+  statement: string
 ) {
   const startTime = performance.now();
   const result = await rawRpcFunction(statement);
@@ -142,7 +142,7 @@ async function executeQueryWithRaw(
       columnNames.reduce((obj, col, idx) => {
         obj[col.name] = row[idx];
         return obj;
-      }, {} as Record<string, unknown>),
+      }, {} as Record<string, unknown>)
     ),
     stat: {
       queryDurationMs,
@@ -155,7 +155,7 @@ async function executeQueryWithRaw(
 
 function requireAuth(
   request: Request,
-  options?: StudioOptions,
+  options?: StudioOptions
 ): Response | null {
   // If auth is dangerously disabled, skip all auth checks
   if (options?.dangerouslyDisableAuth) {
@@ -209,7 +209,7 @@ export async function studioMiddleware(
     rowsRead: number;
     rowsWritten: number;
   }>,
-  options?: StudioOptions,
+  options?: StudioOptions
 ) {
   // Check authentication
   const authResponse = requireAuth(request, options);
@@ -228,7 +228,7 @@ export async function studioMiddleware(
       try {
         const result = await executeQueryWithRaw(
           rawRpcFunction,
-          body.statement,
+          body.statement
         );
         return Response.json({ result });
       } catch (e) {

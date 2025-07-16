@@ -1,5 +1,17 @@
 import { DurableObject } from "cloudflare:workers";
-export { studioMiddleware } from "./studio-middleware";
+export { studioMiddleware, StudioOptions } from "./studio-middleware";
+
+export type ExecFn = (
+  query: string,
+  ...bindings: any[]
+) => Promise<{
+  columnNames: string[];
+  rowsRead: number;
+  rowsWritten: number;
+  array: any[];
+  one: any;
+}>;
+
 export class QueryableHandler {
   public sql: SqlStorage | undefined;
 
@@ -13,7 +25,7 @@ export class QueryableHandler {
     }
 
     const result = this.exec(
-      `SELECT sql FROM "main".sqlite_schema WHERE type = 'table' AND sql IS NOT NULL ORDER BY name`,
+      `SELECT sql FROM "main".sqlite_schema WHERE type = 'table' AND sql IS NOT NULL ORDER BY name`
     );
 
     let schema = "";
@@ -25,7 +37,7 @@ export class QueryableHandler {
 
     // Also get indexes
     const indexResult = this.exec(
-      `SELECT sql FROM "main".sqlite_schema WHERE type = 'index' AND sql IS NOT NULL ORDER BY name`,
+      `SELECT sql FROM "main".sqlite_schema WHERE type = 'index' AND sql IS NOT NULL ORDER BY name`
     );
 
     if (indexResult.array.length > 0) {
