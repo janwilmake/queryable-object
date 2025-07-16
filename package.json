@@ -1,6 +1,6 @@
 {
   "name": "queryable-object",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250710.0"
   },

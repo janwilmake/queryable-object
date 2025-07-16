@@ -1,6 +1,18 @@
 import { DurableObject } from "cloudflare:workers";
 export { studioMiddleware, StudioOptions } from "./studio-middleware";
 
+export type RawFn = (
+  query: string,
+  ...bindings: any[]
+) => Promise<{
+  columnNames: string[];
+  rowsRead: number;
+  rowsWritten: number;
+  raw: SqlStorageValue[][];
+}>;
+
+export type GetSchemaFn = () => Promise<string>;
+
 export type ExecFn = (
   query: string,
   ...bindings: any[]
@@ -11,6 +23,12 @@ export type ExecFn = (
   array: any[];
   one: any;
 }>;
+
+export type HandlerObject = {
+  exec: ExecFn;
+  raw: RawFn;
+  getSchema: GetSchemaFn;
+};
 
 export class QueryableHandler {
   public sql: SqlStorage | undefined;
