@@ -10,6 +10,8 @@ import {
   studioMiddleware,
   Queryable,
   QueryableHandler,
+  // Extend this instead of @Queryable
+  QueryableObject
 } from "queryable-object";
 
 
