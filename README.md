@@ -12,6 +12,17 @@ import {
   QueryableHandler,
 } from "queryable-object";
 
+
+
+export type ExecFn =
+/** this adds these functions to your DO Stub:
+{
+  exec: (query: string, ...bindings: any[]) => Promise<{columnNames: string[]; rowsRead: number; rowsWritten: number; array: any[]; one: any; }>;
+  raw: (query: string, ...bindings: any[]) => Promise<{ columnNames: string[]; rowsRead: number; rowsWritten: number; raw: SqlStorageValue[][]; }>;
+  // gets the full schema
+  getSchema: () => Promise<string>;
+};
+*/
 type Env = { MyDO: DurableObjectNamespace<MyDO & QueryableHandler> };
 
 @Queryable()
