@@ -31,6 +31,8 @@ function createStudioInterface() {
             margin: 0;
             width: 100vw;
             height: 100vh;
+            background-color: #000;
+            color: #fff;
         }
 
         iframe {
@@ -97,7 +99,7 @@ function createStudioInterface() {
 
         window.addEventListener("message", handler);
     </script>
-    <a href="?page=import">Import SQL</a>
+    <a href="?page=import">Import JSON</a>
     <iframe
         id="editor"
         allow="clipboard-read; clipboard-write"
@@ -202,135 +204,88 @@ function createImportInterface() {
   return `<!DOCTYPE html>
 <html>
 <head>
-    <title>SQL Import</title>
+    <title>JSON Import</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        input, button { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { background: #007cba; color: white; border: none; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        .status { margin: 20px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
 </head>
 <body>
-    <h2>Import SQL File</h2>
-    <input type="file" id="sqlFile" accept=".sql" />
-    <button onclick="importSQL()" id="importBtn">Import</button>
+    <h1>Import JSON</h1>
+    <p>Upload JSON array of objects:</p>
+    <input type="text" id="tableName" placeholder="Table name" />
+    <input type="file" id="jsonFile" accept=".json" />
+    <button onclick="importJSON()">Import</button>
     <div id="status"></div>
-    <div id="results"></div>
-
-    <script type="module">
-        import * as sqlParser from 'https://unpkg.com/sql-parser-cst@latest/lib/main.js';
-        
-        window.sqlParser = sqlParser;
-        
-        function parseSqlStatements(sql) {
-            try {
-                const ast = sqlParser.parse(sql, { 
-                    dialect: 'sqlite',
-                    includeSpaces: true,
-                    includeComments: true 
-                });
-                
-                const statements = [];
-                
-                if (ast.statements) {
-                    ast.statements.forEach((stmt, index) => {
-                        if (stmt && stmt.type !== 'empty') {
-                            const statementSql = sqlParser.show(stmt);
-                            
-                            if (statementSql.trim()) {
-                                statements.push(statementSql.trim());
-                            }
-                        }
-                    });
-                }
-                
-                return statements;
-            } catch (error) {
-                console.error('Failed to parse SQL:', error);
-                return [];
-            }
-        }
-        
-        window.parseSqlStatements = parseSqlStatements;
-    </script>
 
     <script>
-        async function importSQL() {
-            const fileInput = document.getElementById('sqlFile');
-            const file = fileInput.files[0];
+        function escape(val) {
+            return val === null || val === undefined ? 'NULL' : 
+                   typeof val === 'string' ? "'" + val.replace(/'/g, "''") + "'" : 
+                   val.toString();
+        }
+        
+        async function importJSON() {
+            const table = document.getElementById('tableName').value.trim();
+            const file = document.getElementById('jsonFile').files[0];
             
-            if (!file) {
-                alert('Please select a SQL file');
+            if (!table || !file) {
+                show('Enter table name and select file', 'error');
                 return;
             }
             
-            const importBtn = document.getElementById('importBtn');
-            const status = document.getElementById('status');
-            const results = document.getElementById('results');
-            
-            importBtn.disabled = true;
-            status.innerHTML = 'Reading file...';
-            results.innerHTML = '';
+            document.querySelector('button').disabled = true;
+            show('Processing...', 'info');
             
             try {
-                const sqlContent = await file.text();
-                status.innerHTML = 'Parsing SQL...';
-                
-                const statements = window.parseSqlStatements(sqlContent);
-                
-                if (statements.length === 0) {
-                    status.innerHTML = 'No valid SQL statements found';
-                    importBtn.disabled = false;
-                    return;
+                const data = JSON.parse(await file.text());
+                if (!Array.isArray(data) || data.length === 0) {
+                    throw new Error('JSON must be non-empty array');
                 }
                 
-                status.innerHTML = \`Found \${statements.length} statements. Executing...\`;
+                let success = 0, errors = 0;
                 
-                let successCount = 0;
-                let failCount = 0;
-                
-                for (let i = 0; i < statements.length; i++) {
-                    const statement = statements[i];
-                    
+                for (let i = 0; i < data.length; i++) {
                     try {
-                        const response = await fetch(window.location.pathname, {
+                        const obj = data[i];
+                        const cols = Object.keys(obj);
+                        const vals = cols.map(c => escape(obj[c]));
+                        const sql = \`INSERT OR REPLACE INTO \${table} (\${cols.join(',')}) VALUES (\${vals.join(',')});\`;
+                        
+                        const res = await fetch(location.pathname, {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                type: 'query',
-                                id: \`import_\${i}_\${Date.now()}\`,
-                                statement: statement
-                            })
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({type: 'query', id: Date.now() + '_' + i, statement: sql})
                         });
                         
-                        const result = await response.json();
-                        
-                        if (result.error) {
-                            throw new Error(result.error);
-                        }
-                        
-                        successCount++;
-                        
-                    } catch (error) {
-                        failCount++;
-                        console.error(\`Statement \${i + 1} failed:\`, error);
-                        
-                        const errorDiv = document.createElement('div');
-                        errorDiv.innerHTML = \`<strong>Statement \${i + 1} failed:</strong> \${error.message}<br><pre>\${statement}</pre><hr>\`;
-                        results.appendChild(errorDiv);
+                        const result = await res.json();
+                        if (result.error) throw new Error(result.error);
+                        success++;
+                    } catch (e) {
+                        errors++;
                     }
-                    
-                    // Update progress
-                    status.innerHTML = \`Progress: \${i + 1}/\${statements.length} (\${successCount} succeeded, \${failCount} failed)\`;
                 }
                 
-                status.innerHTML = \`Import complete! \${successCount} statements succeeded, \${failCount} failed.\`;
+                show(\`Done: \${success} success, \${errors} errors\`, success > 0 ? 'success' : 'error');
                 
-            } catch (error) {
-                status.innerHTML = \`Error: \${error.message}\`;
-                console.error(error);
+            } catch (e) {
+                show('Error: ' + e.message, 'error');
+            } finally {
+                document.querySelector('button').disabled = false;
             }
-            
-            importBtn.disabled = false;
         }
         
-        window.importSQL = importSQL;
+        function show(msg, type) {
+            const div = document.getElementById('status');
+            div.className = 'status ' + type;
+            div.textContent = msg;
+        }
     </script>
 </body>
 </html>`;
