@@ -58,6 +58,7 @@ export default {
 
     if (url.pathname.endsWith("/studio")) {
       // Add studio that can access any raw function
+      // NB: this also adds a small import functionality to import .sql files and execute its statements. use '?page=import' to access it.
       return studioMiddleware(request, stub.raw, {
         basicAuth: { username: "admin", password: "test" },
       });
