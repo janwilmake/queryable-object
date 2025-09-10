@@ -198,6 +198,85 @@ function requireAuth(
   return null;
 }
 
+function createImportInterface() {
+  return `<!DOCTYPE html>
+<html>
+<head>
+    <title>SQL Import</title>
+</head>
+<body>
+    <h1>SQL Import</h1>
+    <input type="file" id="sqlFile" accept=".sql" />
+    <button onclick="importSql()">Import SQL</button>
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <script>
+        async function importSql() {
+            const fileInput = document.getElementById('sqlFile');
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            if (!fileInput.files[0]) {
+                statusDiv.textContent = 'Please select a SQL file';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const content = await file.text();
+            
+            // Split SQL statements (simple split by semicolon)
+            const statements = content.split(';')
+                .map(stmt => stmt.trim())
+                .filter(stmt => stmt.length > 0);
+            
+            statusDiv.textContent = \`Found \${statements.length} statements. Executing...\`;
+            resultsDiv.innerHTML = '';
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (let i = 0; i < statements.length; i++) {
+                const statement = statements[i];
+                const requestId = \`import_\${Date.now()}_\${i}\`;
+                
+                try {
+                    const response = await fetch(window.location.pathname, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            type: 'query',
+                            id: requestId,
+                            statement: statement
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        failCount++;
+                        const errorDiv = document.createElement('div');
+                        errorDiv.innerHTML = \`<strong>Error in statement \${i + 1}:</strong> \${result.error}<br><code>\${statement}</code>\`;
+                        resultsDiv.appendChild(errorDiv);
+                    } else {
+                        successCount++;
+                    }
+                } catch (error) {
+                    failCount++;
+                    const errorDiv = document.createElement('div');
+                    errorDiv.innerHTML = \`<strong>Error in statement \${i + 1}:</strong> \${error.message}<br><code>\${statement}</code>\`;
+                    resultsDiv.appendChild(errorDiv);
+                }
+            }
+            
+            statusDiv.innerHTML = \`<strong>Import complete!</strong><br>Succeeded: \${successCount}<br>Failed: \${failCount}\`;
+        }
+    </script>
+</body>
+</html>`;
+}
 export async function studioMiddleware(
   request: Request,
   rawRpcFunction: (
@@ -216,8 +295,14 @@ export async function studioMiddleware(
   if (authResponse) {
     return authResponse;
   }
+  const url = new URL(request.url);
 
   if (request.method === "GET") {
+    if (url.searchParams.get("page") === "import") {
+      return new Response(createImportInterface(), {
+        headers: { "Content-Type": "text/html" },
+      });
+    }
     return new Response(createStudioInterface(), {
       headers: { "Content-Type": "text/html" },
     });

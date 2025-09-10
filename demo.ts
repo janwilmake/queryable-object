@@ -89,7 +89,7 @@ export class MyDO extends DurableObject {
           item.name,
           item.description,
           item.price,
-          item.category,
+          item.category
         );
       }
     }
