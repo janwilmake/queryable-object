@@ -31,8 +31,6 @@ function createStudioInterface() {
             margin: 0;
             width: 100vw;
             height: 100vh;
-            background-color: #000;
-            color: #fff;
         }
 
         iframe {
@@ -99,7 +97,6 @@ function createStudioInterface() {
 
         window.addEventListener("message", handler);
     </script>
-    <a href="?page=import">Import JSON</a>
     <iframe
         id="editor"
         allow="clipboard-read; clipboard-write"
