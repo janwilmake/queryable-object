@@ -2,12 +2,13 @@ interface StudioQueryRequest {
   type: "query";
   id: string;
   statement: string;
+  bindings?: any[]; // Add bindings support
 }
 
 interface StudioTransactionRequest {
   type: "transaction";
   id: string;
-  statements: string[];
+  statements: { statement: string; bindings?: any[] }[]; // Update to support bindings per statement
 }
 
 type StudioRequest = StudioQueryRequest | StudioTransactionRequest;
@@ -108,14 +109,15 @@ function createStudioInterface() {
 
 async function executeQueryWithRaw(
   rawRpcFunction: (query: string, ...bindings: any[]) => Promise<any>,
-  statement: string
+  statement: string,
+  bindings: any[] = [] // Add bindings parameter with default empty array
 ) {
   const startTime = performance.now();
-  const result = await rawRpcFunction(statement);
+  // Pass bindings to the raw function
+  const result = await rawRpcFunction(statement, ...bindings);
   const endTime = performance.now();
-  const queryDurationMs = Math.round((endTime - startTime) * 100) / 100; // Round to 2 decimal places
+  const queryDurationMs = Math.round((endTime - startTime) * 100) / 100;
 
-  // Handle the column name mapping carefully
   const columnSet = new Set();
   const columnNames = result.columnNames.map((colName: string) => {
     let renameColName = colName;
@@ -156,12 +158,10 @@ function requireAuth(
   request: Request,
   options?: StudioOptions
 ): Response | null {
-  // If auth is dangerously disabled, skip all auth checks
   if (options?.dangerouslyDisableAuth) {
     return null;
   }
 
-  // If no basicAuth config is provided, require auth by default
   if (!options?.basicAuth) {
     return new Response("Authentication required - no credentials configured", {
       status: 401,
@@ -222,12 +222,6 @@ function createImportInterface() {
     <div id="status"></div>
 
     <script>
-        function escape(val) {
-            return val === null || val === undefined ? 'NULL' : 
-                   typeof val === 'string' ? "'" + val.replace(/'/g, "''") + "'" : 
-                   val.toString();
-        }
-        
         async function importJSON() {
             const table = document.getElementById('tableName').value.trim();
             const file = document.getElementById('jsonFile').files[0];
@@ -248,25 +242,46 @@ function createImportInterface() {
                 
                 let success = 0, errors = 0;
                 
-                for (let i = 0; i < data.length; i++) {
+                // Process in smaller batches to avoid size limits
+                const batchSize = 100;
+                for (let i = 0; i < data.length; i += batchSize) {
+                    const batch = data.slice(i, i + batchSize);
+                    
                     try {
-                        const obj = data[i];
-                        const cols = Object.keys(obj);
-                        const vals = cols.map(c => escape(obj[c]));
-                        const sql = \`INSERT OR REPLACE INTO \${table} (\${cols.join(',')}) VALUES (\${vals.join(',')});\`;
-                        
-                        const res = await fetch(location.pathname, {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({type: 'query', id: Date.now() + '_' + i, statement: sql})
-                        });
-                        
-                        const result = await res.json();
-                        if (result.error) throw new Error(result.error);
-                        success++;
+                        // Use parameterized queries with bindings
+                        if (batch.length > 0) {
+                            const obj = batch[0];
+                            const cols = Object.keys(obj);
+                            const placeholders = cols.map(() => '?').join(',');
+                            const sql = \`INSERT OR REPLACE INTO \${table} (\${cols.join(',')}) VALUES (\${placeholders})\`;
+                            
+                            // Create transaction with bindings for each row
+                            const statements = batch.map(row => ({
+                                statement: sql,
+                                bindings: cols.map(col => row[col])
+                            }));
+                            
+                            const res = await fetch(location.pathname, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    type: 'transaction',
+                                    id: Date.now() + '_' + i,
+                                    statements: statements
+                                })
+                            });
+                            
+                            const result = await res.json();
+                            if (result.error) throw new Error(result.error);
+                            success += batch.length;
+                        }
                     } catch (e) {
-                        errors++;
+                        console.error('Batch error:', e);
+                        errors += batch.length;
                     }
+                    
+                    // Update progress
+                    show(\`Progress: \${Math.min(i + batchSize, data.length)}/\${data.length} processed\`, 'info');
                 }
                 
                 show(\`Done: \${success} success, \${errors} errors\`, success > 0 ? 'success' : 'error');
@@ -301,11 +316,11 @@ export async function studioMiddleware(
   }>,
   options?: StudioOptions
 ) {
-  // Check authentication
   const authResponse = requireAuth(request, options);
   if (authResponse) {
     return authResponse;
   }
+
   const url = new URL(request.url);
 
   if (request.method === "GET") {
@@ -322,9 +337,11 @@ export async function studioMiddleware(
 
     if (body.type === "query") {
       try {
+        // Pass bindings if they exist
         const result = await executeQueryWithRaw(
           rawRpcFunction,
-          body.statement
+          body.statement,
+          body.bindings || []
         );
         return Response.json({ result });
       } catch (e) {
@@ -336,8 +353,16 @@ export async function studioMiddleware(
     } else if (body.type === "transaction") {
       try {
         const results = [];
-        for (const statement of body.statements) {
-          const result = await executeQueryWithRaw(rawRpcFunction, statement);
+        for (const stmt of body.statements) {
+          // Handle both old format (string) and new format (object with bindings)
+          const statement = typeof stmt === "string" ? stmt : stmt.statement;
+          const bindings = typeof stmt === "string" ? [] : stmt.bindings || [];
+
+          const result = await executeQueryWithRaw(
+            rawRpcFunction,
+            statement,
+            bindings
+          );
           results.push(result);
         }
         return Response.json({ result: results });
